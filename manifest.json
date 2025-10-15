@@ -1,0 +1,22 @@
+
+{
+  "manifest_version": 3,
+  "name": "focus",
+  "version": "1.0",
+  "description": "let us help boost your focus",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://www.twitch.tv/*",
+        "https://www.ebay.com/*"
+      ],
+      "js": ["jquery.min.js", "./main.js"],
+      "css": ["styles.css"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "focus mode"
+  }
+}
