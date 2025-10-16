@@ -1,63 +1,137 @@
-document.getElementById('toggle').addEventListener("click", () => {
-    // This button is for activating focus mode in your extension.
-    // When clicked, it simply shows an alert to the user.
-    alert("focus mode activated 🧠");
-});
+// document.getElementById('toggle').addEventListener("click", () => {
+//     // This button is for activating focus mode in your extension.
+//     // When clicked, it simply shows an alert to the user.
+//     alert("focus mode activated 🧠");
+// });
 
-// Step 1: Add an event listener for the Spotify login button.
-// This allows users to authenticate with Spotify and get their own access token.
-// When the button is clicked, we start the OAuth flow.
-document.getElementById('spotify-login').addEventListener("click", () => {
-    // Step 2: Define your Spotify app's client ID.
-    // You must register your app at https://developer.spotify.com/dashboard/applications to get this.
-    // The client ID uniquely identifies your app to Spotify.
-    const clientId = "670cc3b01dce48e6aa112dba2b770741"; // <-- Replace with your actual client ID
+// Step 1: DOMContentLoaded event listener
+// This ensures the script runs only after the full HTML document has been loaded and parsed.
+document.addEventListener('DOMContentLoaded', () => {
+    // Step 2: Define constants and get UI elements
+    // We define the client ID and redirect URI here.
+    // Remember to keep your actual client ID from the Spotify dashboard.
+    const clientId = '670cc3b0f1dc4e86aa1f2dba2b770741'; // Your client ID
+    const redirectUri = 'https://tehutiboy20.github.io/Hackathon-/callback.html';
 
-    // Step 3: Define the redirect URI.
-    // This URI is where Spotify will send the user after they log in and approve permissions.
-    // It must match one of the redirect URIs you set in your Spotify app settings.
-    // For GitHub Pages, use the full path to your callback.html file.
-    // This allows your extension to receive the token securely.
-    const redirectUri = "https://tehutiboy20.github.io/Hackathon-/callback.html"; // <-- Must match Spotify dashboard and be accessible
+    // Get references to all the buttons and divs in the popup
+    const loginView = document.getElementById('login-view');
+    const playerView = document.getElementById('player-view');
+    const loginButton = document.getElementById('spotify-login');
+    const logoutButton = document.getElementById('logout-button');
+    const playPauseButton = document.getElementById('play-pause');
+    const prevButton = document.getElementById('prev');
+    const nextButton = document.getElementById('next');
+    const trackInfoDiv = document.getElementById('track-info');
+    const statusDiv = document.getElementById('status');
 
-    // Step 4: Define the scopes your app needs.
-    // Scopes specify what permissions your app is requesting from the user.
-    // For example, 'playlist-read-private' lets you read the user's private playlists,
-    // and 'user-read-playback-state' lets you read the user's playback state.
-    // You can add more scopes as needed for your app's features.
-    const scopes = "playlist-read-private user-read-playback-state";
+    let spotifyToken = null; // Variable to hold the token
 
-    // Step 5: Build the Spotify authorization URL.
-    // This URL will redirect the user to Spotify's login page and ask for permission.
-    // The URL includes your client ID, response type (token for implicit flow),
-    // redirect URI, and requested scopes.
-    // After the user logs in and approves, Spotify will redirect to your URI
-    // with the access token in the URL fragment (#access_token=...).
-    const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
-
-    // Step 6: Open the authorization URL in a popup window.
-    // This is important: opening a popup window from the extension allows Chrome to permit the redirect to your extension page.
-    // The popup window will be used for the OAuth flow and will close automatically after authentication.
-    const width = 500;
-    const height = 700;
-    const left = (screen.width / 2) - (width / 2);
-    const top = (screen.height / 2) - (height / 2);
-
-    // Open the Spotify login page in a centered popup window.
-    const authWindow = window.open(
-        authUrl,
-        "Spotify Login",
-        `width=${width},height=${height},top=${top},left=${left}`
-    );
-
-    // Step 7: Set up a timer to check when the popup window closes.
-    // When the window closes, we can reload the popup to update the UI with the new token.
-    // This is a simple way to refresh the extension state after authentication.
-    const pollTimer = window.setInterval(function () {
-        if (authWindow.closed) {
-            window.clearInterval(pollTimer);
-            // Reload the popup to trigger token usage (e.g., fetch tracks)
-            window.location.reload();
+    // Step 3: Function to make authenticated API calls to Spotify
+    // This is a helper function to avoid repeating headers and error handling.
+    async function spotifyApiRequest(endpoint, method = 'GET', body = null) {
+        if (!spotifyToken) {
+            console.error('No Spotify token available.');
+            return null;
         }
-    }, 500);
+
+        const res = await fetch(`https://api.spotify.com/v1/me/player/play${endpoint}`, {
+            method,
+            headers: { 'Authorization': `Bearer ${spotifyToken}` },
+            body: body ? JSON.stringify(body) : null
+        });
+
+        // If token is expired (401), log the user out.
+        if (res.status === 401) {
+            logout();
+            return null;
+        }
+        // For requests that don't return content (like play/pause), a 204 status is success.
+        if (res.status === 204) {
+            return true;
+        }
+        return res.json();
+    }
+
+    // Step 4: Player control functions
+    // These functions call the Spotify API to control playback.
+    async function playPause() {
+        const playerState = await spotifyApiRequest('me/player');
+        // If music is currently playing, pause it. Otherwise, play it.
+        if (playerState && playerState.is_playing) {
+            await spotifyApiRequest('me/player/pause', 'PUT');
+            playPauseButton.textContent = '▶';
+        } else {
+            await spotifyApiRequest('me/player/play', 'PUT');
+            playPauseButton.textContent = '❚❚';
+        }
+    }
+
+    // Skip to the previous or next track
+    const skipPrev = () => spotifyApiRequest('me/player/previous', 'POST');
+    const skipNext = () => spotifyApiRequest('me/player/next', 'POST');
+
+    // Step 5: Function to update the track info in the UI
+    // This fetches the currently playing track and displays its details.
+    async function updateTrackInfo() {
+        const data = await spotifyApiRequest('me/player/currently-playing');
+        if (data && data.item) {
+            trackInfoDiv.innerHTML = `
+                <strong>${data.item.name}</strong><br>
+                <em>${data.item.artists.map(a => a.name).join(', ')}</em><br>
+                <img src="${data.item.album.images[2]?.url}" width="64" height="64">
+            `;
+            // Update the play/pause button based on the current playback state
+            playPauseButton.textContent = data.is_playing ? '❚❚' : '▶';
+        } else {
+            trackInfoDiv.innerHTML = 'No song is currently playing.';
+            playPauseButton.textContent = '▶';
+        }
+    }
+
+    // Step 6: UI update function
+    // This function checks if a token exists and shows the correct view (login or player).
+    function updateUI() {
+        if (spotifyToken) {
+            loginView.style.display = 'none';
+            playerView.style.display = 'block';
+            updateTrackInfo(); // Fetch track info as soon as we know we're logged in
+        } else {
+            loginView.style.display = 'block';
+            playerView.style.display = 'none';
+        }
+    }
+
+    // Step 7: Login and Logout functions
+    function login() {
+        // We need permissions to read and control playback.
+        const scopes = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
+        const authUrl = `https://accounts.spotify.com/authorize?response_type=token&client_id=$${clientId}&scope=${encodeURIComponent(scopes)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+        
+        // Open the Spotify login page in a new tab.
+        chrome.tabs.create({ url: authUrl });
+    }
+
+    function logout() {
+        // Remove the token from storage and update the UI.
+        chrome.storage.local.remove('spotify_token', () => {
+            spotifyToken = null;
+            updateUI();
+        });
+    }
+
+    // Step 8: Add event listeners to all the buttons
+    loginButton.addEventListener('click', login);
+    logoutButton.addEventListener('click', logout);
+    playPauseButton.addEventListener('click', playPause);
+    prevButton.addEventListener('click', skipPrev);
+    nextButton.addEventListener('click', skipNext);
+
+    // Step 9: Initialization logic
+    // When the popup opens, check chrome.storage for a token.
+    chrome.storage.local.get('spotify_token', (result) => {
+        if (result.spotify_token) {
+            spotifyToken = result.spotify_token;
+        }
+        updateUI(); // Update the UI based on whether a token was found.
+    });
 });

@@ -1,33 +1,20 @@
 <!DOCTYPE html>
 <html>
-  <body>
+<body>
     <script>
-      // Step 1: Get the URL fragment after the '#' symbol.
-      // When Spotify redirects back after login, the access token is included in the URL fragment.
-      // Example: callback.html#access_token=YOUR_TOKEN&token_type=Bearer&expires_in=3600
-      const hash = window.location.hash.substring(1);
+        // Get the access token from the URL fragment
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const token = params.get('access_token');
 
-      // Step 2: Parse the fragment string into key-value pairs.
-      // URLSearchParams makes it easy to extract parameters like 'access_token'.
-      const params = new URLSearchParams(hash);
-
-      // Step 3: Get the 'access_token' value from the parsed parameters.
-      // This is the actual token you need to authenticate Spotify API requests.
-      const token = params.get('access_token');
-
-      // Step 4: If a token was found, save it to localStorage.
-      // This allows your extension's other scripts (like spotify.js) to access the token and use it for API calls.
-      // You could also use chrome.storage for better security and cross-context access.
-      if (token) {
-        localStorage.setItem('spotify_token', token);
-
-        // Step 5: Optionally close the tab after saving the token.
-        // This provides a smoother user experience, so users don't have to manually close the tab.
-        window.close();
-      }
+        if (token) {
+            // Use chrome.storage.local to save the token
+            chrome.storage.local.set({ 'spotify_token': token }, () => {
+                // Close the tab after the token is saved
+                window.close();
+            });
+        }
     </script>
-    <!-- Step 6: Display a message in case the tab doesn't close automatically. -->
-    <!-- This reassures the user that authentication is complete and they can close the tab. -->
     <h3>You can close this tab.</h3>
-  </body>
+</body>
 </html>
