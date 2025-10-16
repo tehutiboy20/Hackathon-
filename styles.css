@@ -1,3 +1,62 @@
+<<<<<<< HEAD
 .beautText {
     color: green;
 }
+=======
+
+:root {
+    --bg-color: darkcyan;
+    --text-color: aliceblue;
+    --button-bg: #333;
+    --button-text: white;
+  }
+  
+  /* Dark mode overrides */
+  body.dark-mode {
+    --bg-color: #111;
+    --text-color: #f1f1f1;
+    --button-bg: #f1f1f1;
+    --button-text: #111;
+  }
+  
+  body {
+    font-family: sans-serif;
+    text-align: center;
+    padding: 10px;
+    width: 250px;
+    background-color: darkcyan;
+    color: aliceblue;
+    transition: 0.3s;
+  }
+  
+  .beautText {
+    font-weight: 100;
+    font-size: 25px;
+    color: wheat;
+    text-align: center;
+    margin: 20px 0;
+  }
+  
+  .container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .controls button {
+    background: #333;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+  
+  /* 
+  .container,
+  h1,
+  h3 {
+    text-align: center;
+  } */
+  
+>>>>>>> 6b9f5dcb6983f787b69bb8ab8fcd08f20161be27
