@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <title>Focus Helper</title>
+    
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -42,18 +43,28 @@
     <h3>Focus Mode</h3>
 
     <div id="login-view">
-        <button id="spotify-login">Login with Spotify</button>
-        <p id="status">Please log in to start.</p>
+        <button id="spotify-login">Open Spotify Web Player</button>
+        <p id="status">Click to open Spotify</p>
     </div>
 
+    <!-- I'm creating the player view that shows when Spotify is connected -->
+    <!-- I'm hiding this by default until Spotify is detected -->
     <div id="player-view" style="display: none;">
+        <!-- I'm showing a connection status message -->
+        <p id="status">Connected</p>
+        
+        <!-- I'm creating a div where I'll display the current track name, artist, and album art -->
         <div id="track-info">Loading...</div>
+        
+        <!-- creating the player control buttons: previous, play/pause, and next -->
         <div class="player-controls">
-            <button id="prev">«</button>
-            <button id="play-pause">▶</button>
-            <button id="next">»</button>
+            <button id="prev">«</button> <!-- I'm using a double left chevron for "previous" -->
+            <button id="play-pause">▶</button> <!-- I'm using a play symbol (will change to pause when playing) -->
+            <button id="next">»</button> <!-- I'm using a double right chevron for "next" -->
         </div>
-        <button id="logout-button" style="background-color: #f44336; margin-top: 10px;">Logout</button>
+        
+        <!--  adding a disconnect button in red so users can reset the connection -->
+        <button id="logout-button" style="background-color: #f44336; margin-top: 10px;">Disconnect</button>
     </div>
 
     <script src="popup.js"></script>

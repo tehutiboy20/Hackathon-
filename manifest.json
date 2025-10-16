@@ -4,10 +4,12 @@
   "version": "1.0",
   "description": "let us help boost your focus",
   "host_permissions": [
-    "https://api.spotify.com/*"
+    "https://open.spotify.com/*"
   ],
   "permissions": [
-    "storage"
+    "storage",
+    "tabs",
+    "scripting"
   ],
   "content_scripts": [
     {
@@ -18,8 +20,18 @@
       ],
       "js": ["jquery.min.js", "./main.js"],
       "css": ["styles.css"]
+    },
+    {
+      "_comment": "I'm injecting spotify-content.js into Spotify Web Player to control playback without OAuth",
+      "matches": [
+        "https://open.spotify.com/*"
+      ],
+      "js": ["spotify-content.js"],
+      "run_at": "document_idle"
     }
   ],
+  
+  "_comment_action": "I'm defining my extension's popup interface - when users click my icon, they'll see index.html",
   "action": {
     "default_popup": "index.html",
     "default_title": "focus mode"

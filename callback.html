@@ -1,20 +1,35 @@
 <!DOCTYPE html>
 <html>
 <body>
+    <!-- I'm showing a success message to the user -->
+    <h3>Authentication successful!</h3>
+    
+    <!-- I'm telling the user they can close this tab now -->
+    <p>You can close this tab and return to the extension.</p>
+    
     <script>
-        // Get the access token from the URL fragment
+    // NOTE:  keeping this file for now, but it's NOT being used in the current implementation
+    // I used to handle OAuth callbacks here, but I've switched to browser automation instead.
+    // This code would extract the access token from Spotify's OAuth redirect.
+    
+    (function() {
+        // I'm extracting the fragment part of the URL (everything after the #)
         const hash = window.location.hash.substring(1);
+        
+        // I'm parsing the fragment as URL parameters
         const params = new URLSearchParams(hash);
+        
+        // I'm getting the access_token parameter that Spotify sends back
         const token = params.get('access_token');
-
+        
         if (token) {
-            // Use chrome.storage.local to save the token
-            chrome.storage.local.set({ 'spotify_token': token }, () => {
-                // Close the tab after the token is saved
+            // I'm storing the token in Chrome's local storage so my extension can use it
+            chrome.storage.local.set({ 'spotify_token': token }, function() {
+                // I'm closing this window automatically once the token is saved
                 window.close();
             });
         }
+    })();
     </script>
-    <h3>You can close this tab.</h3>
 </body>
 </html>

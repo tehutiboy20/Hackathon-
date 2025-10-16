@@ -1,19 +1,9 @@
-// document.getElementById('toggle').addEventListener("click", () => {
-//     // This button is for activating focus mode in your extension.
-//     // When clicked, it simply shows an alert to the user.
-//     alert("focus mode activated 🧠");
-// });
-
-// Step 1: DOMContentLoaded event listener
-// This ensures the script runs only after the full HTML document has been loaded and parsed.
+//  completely rewriting this to control Spotify Web Player directly!
+// NO OAuth, NO client IDs, NO authentication - just simple browser automation.
 document.addEventListener('DOMContentLoaded', () => {
-    // Step 2: Define constants and get UI elements
-    // We define the client ID and redirect URI here.
-    // Remember to keep your actual client ID from the Spotify dashboard.
-    const clientId = '670cc3b0f1dc4e86aa1f2dba2b770741'; // Your client ID
-    const redirectUri = 'https://tehutiboy20.github.io/Hackathon-/callback.html';
-
-    // Get references to all the buttons and divs in the popup
+    
+    // --- STEP 1:  grabbing all my UI elements ---
+    
     const loginView = document.getElementById('login-view');
     const playerView = document.getElementById('player-view');
     const loginButton = document.getElementById('spotify-login');
@@ -24,114 +14,163 @@ document.addEventListener('DOMContentLoaded', () => {
     const trackInfoDiv = document.getElementById('track-info');
     const statusDiv = document.getElementById('status');
 
-    let spotifyToken = null; // Variable to hold the token
+    //  keeping track of whether I found a Spotify tab
+    let spotifyTabId = null;
 
-    // Step 3: Function to make authenticated API calls to Spotify
-    // This is a helper function to avoid repeating headers and error handling.
-    async function spotifyApiRequest(endpoint, method = 'GET', body = null) {
-        if (!spotifyToken) {
-            console.error('No Spotify token available.');
-            return null;
-        }
-
-        const res = await fetch(`https://api.spotify.com/v1/me/player/play${endpoint}`, {
-            method,
-            headers: { 'Authorization': `Bearer ${spotifyToken}` },
-            body: body ? JSON.stringify(body) : null
-        });
-
-        // If token is expired (401), log the user out.
-        if (res.status === 401) {
-            logout();
-            return null;
-        }
-        // For requests that don't return content (like play/pause), a 204 status is success.
-        if (res.status === 204) {
+    // --- STEP 2:  creating a function to find the Spotify Web Player tab ---
+    
+    async function findSpotifyTab() {
+        // I'm searching through all open tabs to find one with open.spotify.com
+        const tabs = await chrome.tabs.query({ url: 'https://open.spotify.com/*' });
+        
+        if (tabs.length > 0) {
+            // Great! I found a Spotify tab
+            spotifyTabId = tabs[0].id;
+            console.log('I found a Spotify tab! Tab ID:', spotifyTabId);
             return true;
+        } else {
+            // No Spotify tab found
+            spotifyTabId = null;
+            console.log('I couldn\'t find any Spotify tabs open');
+            return false;
         }
-        return res.json();
     }
 
-    // Step 4: Player control functions
-    // These functions call the Spotify API to control playback.
+    // --- STEP 3:  creating a function to send messages to the Spotify tab ---
+    
+    async function sendToSpotify(action) {
+        // First, making sure I have a Spotify tab to talk to
+        const hasTab = await findSpotifyTab();
+        
+        if (!hasTab) {
+            console.log('I can\'t send a message because there\'s no Spotify tab!');
+            statusDiv.textContent = 'Please open Spotify Web Player';
+            return null;
+        }
+
+        //  sending the message to my content script running on the Spotify page
+        return new Promise((resolve) => {
+            chrome.tabs.sendMessage(spotifyTabId, { action: action }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.log('I got an error:', chrome.runtime.lastError.message);
+                    resolve(null);
+                } else {
+                    console.log('I got a response:', response);
+                    resolve(response);
+                }
+            });
+        });
+    }
+
+    // --- STEP 4: creating my control functions ---
+    
     async function playPause() {
-        const playerState = await spotifyApiRequest('me/player');
-        // If music is currently playing, pause it. Otherwise, play it.
-        if (playerState && playerState.is_playing) {
-            await spotifyApiRequest('me/player/pause', 'PUT');
-            playPauseButton.textContent = '▶';
-        } else {
-            await spotifyApiRequest('me/player/play', 'PUT');
-            playPauseButton.textContent = '❚❚';
+        console.log('I\'m trying to play or pause the music');
+        const response = await sendToSpotify('play-pause');
+        
+        if (response && response.success) {
+            // After clicking play/pause, I'll update the track info to refresh the button
+            updateTrackInfo();
         }
     }
 
-    // Skip to the previous or next track
-    const skipPrev = () => spotifyApiRequest('me/player/previous', 'POST');
-    const skipNext = () => spotifyApiRequest('me/player/next', 'POST');
+    async function skipNext() {
+        console.log('I\'m skipping to the next track');
+        await sendToSpotify('next');
+        // wait a moment for Spotify to change tracks, then update the display
+        setTimeout(updateTrackInfo, 500);
+    }
 
-    // Step 5: Function to update the track info in the UI
-    // This fetches the currently playing track and displays its details.
+    async function skipPrevious() {
+        console.log('I\'m going to the previous track');
+        await sendToSpotify('previous');
+        // wait a moment for Spotify to change tracks, then update the display
+        setTimeout(updateTrackInfo, 500);
+    }
+
+    // --- STEP 5:  creating a function to get and display the current track ---
+    
     async function updateTrackInfo() {
-        const data = await spotifyApiRequest('me/player/currently-playing');
-        if (data && data.item) {
+        const response = await sendToSpotify('get-track-info');
+        
+        if (response && response.success) {
+            const { trackInfo } = response;
+            
+            // updating the display with the current track information
             trackInfoDiv.innerHTML = `
-                <strong>${data.item.name}</strong><br>
-                <em>${data.item.artists.map(a => a.name).join(', ')}</em><br>
-                <img src="${data.item.album.images[2]?.url}" width="64" height="64">
+                <strong>${trackInfo.name}</strong><br>
+                <em>${trackInfo.artist}</em><br>
+                ${trackInfo.albumArt ? `<img src="${trackInfo.albumArt}" width="64" height="64">` : ''}
             `;
-            // Update the play/pause button based on the current playback state
-            playPauseButton.textContent = data.is_playing ? '❚❚' : '▶';
+            
+            //  updating the play/pause button to match what's actually happening
+            playPauseButton.textContent = trackInfo.isPlaying ? '❚❚' : '▶';
+            statusDiv.textContent = 'Connected to Spotify';
         } else {
-            trackInfoDiv.innerHTML = 'No song is currently playing.';
-            playPauseButton.textContent = '▶';
+            //  couldn't get track info
+            trackInfoDiv.innerHTML = 'Unable to get track info';
+            statusDiv.textContent = 'Make sure Spotify is playing';
         }
     }
 
-    // Step 6: UI update function
-    // This function checks if a token exists and shows the correct view (login or player).
-    function updateUI() {
-        if (spotifyToken) {
+    // --- STEP 6:  creating my "login" function (which just opens Spotify) ---
+    
+    function openSpotify() {
+        //  opening Spotify Web Player in a new tab
+        chrome.tabs.create({ url: 'https://open.spotify.com' }, () => {
+            console.log('I opened Spotify Web Player!');
+            //  wait a moment for it to load, then check if we're connected
+            setTimeout(async () => {
+                const found = await findSpotifyTab();
+                if (found) {
+                    updateUI();
+                }
+            }, 2000);
+        });
+    }
+
+    // --- STEP 7: creating a function to update which view is shown ---
+    
+    async function updateUI() {
+        //  checking if there's a Spotify tab open
+        const hasSpotify = await findSpotifyTab();
+        
+        if (hasSpotify) {
+            // I found Spotify! Show the player controls
             loginView.style.display = 'none';
             playerView.style.display = 'block';
-            updateTrackInfo(); // Fetch track info as soon as we know we're logged in
+            statusDiv.textContent = 'Connecting to Spotify...';
+            //  immediately try to get the current track
+            updateTrackInfo();
         } else {
+            // No Spotify tab found, show the "open Spotify" button
             loginView.style.display = 'block';
             playerView.style.display = 'none';
+            statusDiv.textContent = 'Open Spotify Web Player to start';
         }
     }
 
-    // Step 7: Login and Logout functions
-    function login() {
-        // We need permissions to read and control playback.
-        const scopes = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
-        const authUrl = `https://accounts.spotify.com/authorize?response_type=token&client_id=$${clientId}&scope=${encodeURIComponent(scopes)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
-        
-        // Open the Spotify login page in a new tab.
-        chrome.tabs.create({ url: authUrl });
-    }
-
-    function logout() {
-        // Remove the token from storage and update the UI.
-        chrome.storage.local.remove('spotify_token', () => {
-            spotifyToken = null;
-            updateUI();
-        });
-    }
-
-    // Step 8: Add event listeners to all the buttons
-    loginButton.addEventListener('click', login);
-    logoutButton.addEventListener('click', logout);
+    // --- STEP 8:  connecting all my buttons to their functions ---
+    
+    loginButton.addEventListener('click', openSpotify);
+    logoutButton.addEventListener('click', () => {
+        // The logout button will just refresh the UI to show the login screen
+        spotifyTabId = null;
+        updateUI();
+    });
     playPauseButton.addEventListener('click', playPause);
-    prevButton.addEventListener('click', skipPrev);
+    prevButton.addEventListener('click', skipPrevious);
     nextButton.addEventListener('click', skipNext);
 
-    // Step 9: Initialization logic
-    // When the popup opens, check chrome.storage for a token.
-    chrome.storage.local.get('spotify_token', (result) => {
-        if (result.spotify_token) {
-            spotifyToken = result.spotify_token;
+    // --- STEP 9:  setting up what happens when the popup opens ---
+    
+    // When the user opens the popup, check if Spotify is already open
+    updateUI();
+    
+    //  also set up auto-refresh every 5 seconds to keep the track info current
+    setInterval(() => {
+        if (spotifyTabId) {
+            updateTrackInfo();
         }
-        updateUI(); // Update the UI based on whether a token was found.
-    });
+    }, 5000);
 });
