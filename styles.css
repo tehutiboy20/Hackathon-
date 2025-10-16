@@ -43,7 +43,7 @@
     color: white;
     border: none;
     border-radius: 8px;
-    padding: 8px 12px;
+    padding: 4px 7px;
     cursor: pointer;
   }
   
@@ -53,4 +53,20 @@
   h3 {
     text-align: center;
   } */
-  
+ .spotify-button {
+    background: #1DB954;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 20px;
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.spotify-button:hover {
+    background: #1ed760;
+} 

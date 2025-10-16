@@ -2,6 +2,15 @@ const contents = document.getElementById("root");
 const contentParent = contents.parentNode;
 contents.remove();
 
+//spotify Web player Button 
+const spotifyButton = document.createElement("button");
+spotifyButton.className = "spotify-button";
+spotifyButton.innerHTML = "Open Spotify Web Player";
+spotifyButton.onclick = function() {
+    window.open("https://open.spotify.com", "_blank");
+};
+contentParent.appendChild(spotifyButton);
+
 //adding inspirational text
 const inspirationalText = document.createElement("div");
 inspirationalText.className = "beautText";
